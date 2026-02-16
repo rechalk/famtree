@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   // Find the first (and only) family space and redirect to it
   const space = await prisma.familySpace.findFirst({
