@@ -4,28 +4,12 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  try {
-    const space = await prisma.familySpace.findFirst({
-      orderBy: { createdAt: "asc" },
-    });
+  const space = await prisma.familySpace.findFirst({
+    orderBy: { createdAt: "asc" },
+  });
 
-    if (space) {
-      redirect(`/space/${space.id}`);
-    }
-  } catch (error: any) {
-    // Re-throw redirect (Next.js uses NEXT_REDIRECT error)
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
-
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 p-6">
-        <div className="text-center max-w-lg">
-          <h1 className="text-2xl font-bold mb-2">Aoudi Family Tree</h1>
-          <p className="text-red-500 mb-4">Database connection error</p>
-          <pre className="text-xs bg-gray-100 p-4 rounded text-left overflow-auto">{error?.message || String(error)}</pre>
-          <p className="text-gray-400 text-xs mt-4">DATABASE_URL set: {process.env.DATABASE_URL ? `yes (${process.env.DATABASE_URL.substring(0, 30)}...)` : "NO - missing"}</p>
-        </div>
-      </div>
-    );
+  if (space) {
+    redirect(`/space/${space.id}`);
   }
 
   return (
