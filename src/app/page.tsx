@@ -22,7 +22,7 @@ export default async function HomePage() {
           <h1 className="text-2xl font-bold mb-2">Aoudi Family Tree</h1>
           <p className="text-red-500 mb-4">Database connection error</p>
           <pre className="text-xs bg-gray-100 p-4 rounded text-left overflow-auto">{error?.message || String(error)}</pre>
-          <p className="text-gray-400 text-xs mt-4">DATABASE_URL set: {process.env.DATABASE_URL ? "yes" : "no"}</p>
+          <p className="text-gray-400 text-xs mt-4">DATABASE_URL set: {process.env.DATABASE_URL ? `yes (${process.env.DATABASE_URL.substring(0, 30)}...)` : "NO - missing"}</p>
         </div>
       </div>
     );
