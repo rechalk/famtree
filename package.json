@@ -1,0 +1,56 @@
+{
+  "name": "famtree",
+  "version": "1.0.0",
+  "description": "Family Tree web application",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:push": "npx prisma db push",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:studio": "npx prisma studio",
+    "db:reset": "npx prisma db push --force-reset && npx tsx prisma/seed.ts",
+    "setup": "npx prisma generate && npx prisma db push && npx tsx prisma/seed.ts",
+    "postinstall": "npx prisma generate"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
+    "@dagrejs/dagre": "^2.0.4",
+    "@prisma/client": "^6.19.2",
+    "@reactflow/background": "^11.3.14",
+    "@reactflow/controls": "^11.2.14",
+    "@reactflow/core": "^11.11.4",
+    "@reactflow/minimap": "^11.7.14",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "dagre": "^0.8.5",
+    "html-to-image": "^1.11.13",
+    "lucide-react": "^0.564.0",
+    "next": "^16.1.6",
+    "next-auth": "^5.0.0-beta.30",
+    "postcss": "^8.5.6",
+    "prisma": "^6.19.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "reactflow": "^11.11.4",
+    "sharp": "^0.34.5",
+    "tailwind-merge": "^3.4.1",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.21.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
