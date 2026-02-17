@@ -7,3 +7,4 @@ node_modules/
 public/uploads/*
 !public/uploads/.gitkeep
 .vercel
+supabase/.temp
