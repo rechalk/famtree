@@ -128,8 +128,10 @@ export async function getSpace(spaceId: string) {
 // People
 export async function createPerson(spaceId: string, data: {
   firstName: string;
+  middleName?: string;
   lastName: string;
   firstNameAr?: string;
+  middleNameAr?: string;
   lastNameAr?: string;
   nickname?: string;
   birthYear?: number;
@@ -168,8 +170,10 @@ export async function createPerson(spaceId: string, data: {
 
 export async function updatePerson(personId: string, spaceId: string, data: {
   firstName?: string;
+  middleName?: string;
   lastName?: string;
   firstNameAr?: string;
+  middleNameAr?: string;
   lastNameAr?: string;
   nickname?: string;
   birthYear?: number | null;

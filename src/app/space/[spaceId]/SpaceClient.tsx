@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useTransition, useRef, useMemo } from "react";
+import { useState, useCallback, useTransition, useRef, useMemo, type ElementRef } from "react";
 import {
   TreePine, Plus, Search, Users, ChevronLeft, ChevronRight,
   UserPlus, Link2, Download, Maximize, X, Trash2, Edit2, LogIn, LogOut,
@@ -18,15 +18,17 @@ import {
   deleteRelationship, createInvitation, submitClaim, getPendingClaims,
   approveClaim, rejectClaim
 } from "@/lib/actions";
-import { toPng } from "html-to-image";
+import type { FamilyTreeCanvasHandle } from "@/components/tree/FamilyTreeCanvas";
 
 const FamilyTreeCanvas = dynamic(() => import("@/components/tree/FamilyTreeCanvas"), { ssr: false });
 
 interface Person {
   id: string;
   firstName: string;
+  middleName?: string | null;
   lastName: string;
   firstNameAr?: string | null;
+  middleNameAr?: string | null;
   lastNameAr?: string | null;
   nickname?: string | null;
   birthYear?: number | null;
@@ -90,6 +92,7 @@ export default function SpaceClient({
   const [generations, setGenerations] = useState(5);
   const [isPending, startTransition] = useTransition();
   const treeRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<FamilyTreeCanvasHandle>(null);
 
   // Relationship form state
   const [relType, setRelType] = useState<"PARENT_CHILD" | "SPOUSE">("PARENT_CHILD");
@@ -148,8 +151,10 @@ export default function SpaceClient({
     startTransition(async () => {
       await createPerson(space.id, {
         firstName: data.firstName,
+        middleName: data.middleName || undefined,
         lastName: data.lastName,
         firstNameAr: data.firstNameAr || undefined,
+        middleNameAr: data.middleNameAr || undefined,
         lastNameAr: data.lastNameAr || undefined,
         nickname: data.nickname || undefined,
         birthYear: data.birthYear ? parseInt(data.birthYear) : undefined,
@@ -170,8 +175,10 @@ export default function SpaceClient({
     startTransition(async () => {
       await updatePerson(editPerson.id, space.id, {
         firstName: data.firstName,
+        middleName: data.middleName || undefined,
         lastName: data.lastName,
         firstNameAr: data.firstNameAr || undefined,
+        middleNameAr: data.middleNameAr || undefined,
         lastNameAr: data.lastNameAr || undefined,
         nickname: data.nickname || undefined,
         birthYear: data.birthYear ? parseInt(data.birthYear) : null,
@@ -260,18 +267,8 @@ export default function SpaceClient({
   }, [space.id]);
 
   const handleExportPng = useCallback(async () => {
-    const el = document.querySelector(".react-flow") as HTMLElement;
-    if (!el) return;
-    try {
-      const dataUrl = await toPng(el, { backgroundColor: "#f8f9fa", pixelRatio: 2 });
-      const link = document.createElement("a");
-      link.download = `${space.name}-family-tree.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (err) {
-      console.error("Export failed:", err);
-    }
-  }, [space.name]);
+    canvasRef.current?.captureFullTree();
+  }, []);
 
   const handlePersonClick = useCallback((personId: string) => {
     const person = people.find((p) => p.id === personId);
@@ -287,13 +284,13 @@ export default function SpaceClient({
     return people.find((p) => p.id === otherId);
   };
 
-  const formatName = (p: { firstName: string; lastName: string; firstNameAr?: string | null; lastNameAr?: string | null }) => {
-    return `${p.firstName} ${p.lastName}`;
+  const formatName = (p: { firstName: string; middleName?: string | null; lastName: string }) => {
+    return [p.firstName, p.middleName, p.lastName].filter(Boolean).join(" ");
   };
 
-  const formatNameAr = (p: { firstNameAr?: string | null; lastNameAr?: string | null }) => {
-    if (!p.firstNameAr && !p.lastNameAr) return null;
-    return `${p.firstNameAr || ""} ${p.lastNameAr || ""}`.trim();
+  const formatNameAr = (p: { firstNameAr?: string | null; middleNameAr?: string | null; lastNameAr?: string | null }) => {
+    if (!p.firstNameAr && !p.middleNameAr && !p.lastNameAr) return null;
+    return [p.firstNameAr, p.middleNameAr, p.lastNameAr].filter(Boolean).join(" ");
   };
 
   return (
@@ -455,6 +452,7 @@ export default function SpaceClient({
         {/* Main tree canvas */}
         <main className="flex-1 relative" ref={treeRef}>
           <FamilyTreeCanvas
+            ref={canvasRef}
             people={people}
             relationships={relationships}
             onPersonClick={handlePersonClick}
@@ -462,6 +460,7 @@ export default function SpaceClient({
             focusPersonId={focusPersonId}
             layoutMode={layoutMode}
             generations={generations}
+            spaceName={space.name}
           />
 
           {/* Mobile bottom controls */}
@@ -513,8 +512,10 @@ export default function SpaceClient({
           <PersonForm
             initial={{
               firstName: editPerson.firstName,
+              middleName: editPerson.middleName || "",
               lastName: editPerson.lastName,
               firstNameAr: editPerson.firstNameAr || "",
+              middleNameAr: editPerson.middleNameAr || "",
               lastNameAr: editPerson.lastNameAr || "",
               nickname: editPerson.nickname || "",
               birthYear: editPerson.birthYear?.toString() || "",

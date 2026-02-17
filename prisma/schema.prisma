@@ -85,8 +85,10 @@ model Membership {
 model Person {
   id            String         @id @default(cuid())
   firstName     String
+  middleName    String?
   lastName      String
   firstNameAr   String?
+  middleNameAr  String?
   lastNameAr    String?
   nickname      String?
   birthYear     Int?

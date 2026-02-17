@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import ReactFlow, {
   Node,
   Edge,
@@ -9,12 +9,15 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   Panel,
   MarkerType,
   NodeProps,
   Handle,
   Position,
 } from "reactflow";
+import { toPng } from "html-to-image";
 import "reactflow/dist/style.css";
 import dagre from "@dagrejs/dagre";
 import { User, Lock, ChevronDown, ChevronUp } from "lucide-react";
@@ -24,8 +27,10 @@ import Image from "next/image";
 interface PersonData {
   id: string;
   firstName: string;
+  middleName?: string | null;
   lastName: string;
   firstNameAr?: string | null;
+  middleNameAr?: string | null;
   lastNameAr?: string | null;
   nickname?: string | null;
   birthYear?: number | null;
@@ -47,6 +52,10 @@ interface RelationshipData {
   endYear?: number | null;
 }
 
+export interface FamilyTreeCanvasHandle {
+  captureFullTree: () => Promise<void>;
+}
+
 interface FamilyTreeCanvasProps {
   people: PersonData[];
   relationships: RelationshipData[];
@@ -55,14 +64,15 @@ interface FamilyTreeCanvasProps {
   focusPersonId?: string | null;
   layoutMode: "ancestors" | "descendants" | "mixed";
   generations: number;
+  spaceName?: string;
 }
 
 // Custom node component for person cards
 function PersonNode({ data, selected }: NodeProps) {
   const person = data.person as PersonData;
-  const fullName = `${person.firstName} ${person.lastName}`;
-  const arabicName = (person.firstNameAr || person.lastNameAr)
-    ? `${person.firstNameAr || ""} ${person.lastNameAr || ""}`.trim()
+  const fullName = [person.firstName, person.middleName, person.lastName].filter(Boolean).join(" ");
+  const arabicName = (person.firstNameAr || person.middleNameAr || person.lastNameAr)
+    ? [person.firstNameAr, person.middleNameAr, person.lastNameAr].filter(Boolean).join(" ")
     : null;
   const isDeceased = person.deathYear != null;
 
@@ -127,40 +137,88 @@ function PersonNode({ data, selected }: NodeProps) {
 const nodeTypes = { person: PersonNode };
 
 // Dagre layout helper
+const NODE_WIDTH = 220;
+const NODE_HEIGHT = 80;
+const SPOUSE_GAP = 40;
+
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
+  spousePairs: [string, string][],
   direction: "TB" | "BT" = "TB"
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 100, marginx: 40, marginy: 40 });
 
+  // For spouse pairs, only add one "compound" node to dagre to keep them in the same rank
+  const spousePartner = new Map<string, string>(); // partner → primary
+  const primarySpouses = new Set<string>();
+  for (const [a, b] of spousePairs) {
+    // Pick whichever is already a primary, or default to `a`
+    if (spousePartner.has(a)) continue; // already assigned
+    if (primarySpouses.has(b)) {
+      // b is already primary for someone else; make a primary too separately
+      // skip pairing to avoid conflicts
+      continue;
+    }
+    primarySpouses.add(a);
+    spousePartner.set(b, a);
+  }
+
   nodes.forEach((node) => {
-    g.setNode(node.id, { width: 220, height: 80 });
+    if (spousePartner.has(node.id)) {
+      // This node is a spouse partner — give the primary extra width so dagre reserves space
+      return;
+    }
+    const extraWidth = primarySpouses.has(node.id) ? NODE_WIDTH + SPOUSE_GAP : 0;
+    g.setNode(node.id, { width: NODE_WIDTH + extraWidth, height: NODE_HEIGHT });
   });
 
+  // Only feed parent-child edges to dagre (skip spouse edges)
+  const spouseEdgeIds = new Set(
+    edges.filter((e) => e.sourceHandle === "spouse-right" || e.targetHandle === "spouse-left").map((e) => e.id)
+  );
   edges.forEach((edge) => {
-    g.setEdge(edge.source, edge.target);
+    if (spouseEdgeIds.has(edge.id)) return;
+    // Only add edge if both nodes are in the graph
+    const src = spousePartner.has(edge.source) ? spousePartner.get(edge.source)! : edge.source;
+    const tgt = spousePartner.has(edge.target) ? spousePartner.get(edge.target)! : edge.target;
+    if (g.hasNode(src) && g.hasNode(tgt)) {
+      g.setEdge(src, tgt);
+    }
   });
 
   dagre.layout(g);
 
-  const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = g.node(node.id);
-    return {
-      ...node,
-      position: {
-        x: nodeWithPosition.x - 110,
-        y: nodeWithPosition.y - 40,
-      },
-    };
+  const posMap = new Map<string, { x: number; y: number }>();
+  nodes.forEach((node) => {
+    if (spousePartner.has(node.id)) return;
+    const n = g.node(node.id);
+    if (!n) return;
+    posMap.set(node.id, { x: n.x - NODE_WIDTH / 2, y: n.y - NODE_HEIGHT / 2 });
   });
+
+  // Position spouse partners next to their primary
+  for (const [partnerId, primaryId] of spousePartner.entries()) {
+    const primaryPos = posMap.get(primaryId);
+    if (primaryPos) {
+      posMap.set(partnerId, {
+        x: primaryPos.x + NODE_WIDTH + SPOUSE_GAP,
+        y: primaryPos.y,
+      });
+    }
+  }
+
+  const layoutedNodes = nodes.map((node) => ({
+    ...node,
+    position: posMap.get(node.id) || { x: 0, y: 0 },
+  }));
 
   return { nodes: layoutedNodes, edges };
 }
 
-export default function FamilyTreeCanvas({
+const FamilyTreeCanvasInner = forwardRef<FamilyTreeCanvasHandle, FamilyTreeCanvasProps>(function FamilyTreeCanvasInner({
   people,
   relationships,
   onPersonClick,
@@ -168,8 +226,30 @@ export default function FamilyTreeCanvas({
   focusPersonId,
   layoutMode,
   generations,
-}: FamilyTreeCanvasProps) {
+  spaceName,
+}, ref) {
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+  const reactFlowInstance = useReactFlow();
+
+  useImperativeHandle(ref, () => ({
+    captureFullTree: async () => {
+      const el = document.querySelector(".react-flow") as HTMLElement;
+      if (!el) return;
+      // Fit entire tree into view
+      reactFlowInstance.fitView({ padding: 0.1 });
+      // Wait for render
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      try {
+        const dataUrl = await toPng(el, { backgroundColor: "#f8f9fa", pixelRatio: 2 });
+        const link = document.createElement("a");
+        link.download = `${spaceName || "family-tree"}.png`;
+        link.href = dataUrl;
+        link.click();
+      } catch (err) {
+        console.error("Export failed:", err);
+      }
+    },
+  }), [reactFlowInstance, spaceName]);
 
   // Build visible nodes and edges based on layout mode and focus
   const { initialNodes, initialEdges } = useMemo(() => {
@@ -300,9 +380,14 @@ export default function FamilyTreeCanvas({
       });
     });
 
+    // Build spouse pairs for layout
+    const spousePairs: [string, string][] = spouseRels
+      .filter((r) => finalVisible.has(r.fromId) && finalVisible.has(r.toId))
+      .map((r) => [r.fromId, r.toId]);
+
     // Apply dagre layout
     const direction = layoutMode === "ancestors" ? "BT" : "TB";
-    const laid = getLayoutedElements(nodes, edges, direction);
+    const laid = getLayoutedElements(nodes, edges, spousePairs, direction);
     return { initialNodes: laid.nodes, initialEdges: laid.edges };
   }, [people, relationships, focusPersonId, layoutMode, generations, collapsedNodes, onPersonClick]);
 
@@ -389,4 +474,14 @@ export default function FamilyTreeCanvas({
       </Panel>
     </ReactFlow>
   );
-}
+});
+
+const FamilyTreeCanvas = forwardRef<FamilyTreeCanvasHandle, FamilyTreeCanvasProps>(function FamilyTreeCanvas(props, ref) {
+  return (
+    <ReactFlowProvider>
+      <FamilyTreeCanvasInner ref={ref} {...props} />
+    </ReactFlowProvider>
+  );
+});
+
+export default FamilyTreeCanvas;

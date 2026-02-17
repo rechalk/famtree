@@ -6,8 +6,10 @@ import Image from "next/image";
 
 interface PersonFormData {
   firstName: string;
+  middleName: string;
   lastName: string;
   firstNameAr: string;
+  middleNameAr: string;
   lastNameAr: string;
   nickname: string;
   birthYear: string;
@@ -30,8 +32,10 @@ interface PersonFormProps {
 export default function PersonForm({ initial, onSubmit, onCancel, loading }: PersonFormProps) {
   const [form, setForm] = useState<PersonFormData>({
     firstName: initial?.firstName || "",
+    middleName: initial?.middleName || "",
     lastName: initial?.lastName || "",
     firstNameAr: initial?.firstNameAr || "",
+    middleNameAr: initial?.middleNameAr || "",
     lastNameAr: initial?.lastNameAr || "",
     nickname: initial?.nickname || "",
     birthYear: initial?.birthYear || "",
@@ -99,7 +103,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }: Per
         {uploading && <span className="text-sm text-[#718096]">Uploading...</span>}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium mb-1">First Name *</label>
           <input
@@ -107,6 +111,15 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }: Per
             value={form.firstName}
             onChange={(e) => update("firstName", e.target.value)}
             className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2b6cb0]"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Middle Name</label>
+          <input
+            value={form.middleName}
+            onChange={(e) => update("middleName", e.target.value)}
+            className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2b6cb0]"
+            placeholder="Optional"
           />
         </div>
         <div>
@@ -120,7 +133,7 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }: Per
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium mb-1">الاسم الأول (Arabic)</label>
           <input
@@ -129,6 +142,16 @@ export default function PersonForm({ initial, onSubmit, onCancel, loading }: Per
             onChange={(e) => update("firstNameAr", e.target.value)}
             className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2b6cb0]"
             placeholder="الاسم الأول"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">الاسم الأوسط (Arabic)</label>
+          <input
+            dir="rtl"
+            value={form.middleNameAr}
+            onChange={(e) => update("middleNameAr", e.target.value)}
+            className="w-full px-3 py-2 border border-[#e2e8f0] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2b6cb0]"
+            placeholder="الاسم الأوسط"
           />
         </div>
         <div>

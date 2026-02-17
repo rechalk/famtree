@@ -6,8 +6,10 @@ interface PersonCardProps {
   person: {
     id: string;
     firstName: string;
+    middleName?: string | null;
     lastName: string;
     firstNameAr?: string | null;
+    middleNameAr?: string | null;
     lastNameAr?: string | null;
     nickname?: string | null;
     birthYear?: number | null;
@@ -22,7 +24,7 @@ interface PersonCardProps {
 }
 
 export default function PersonCard({ person, selected, compact, onClick }: PersonCardProps) {
-  const fullName = `${person.firstName} ${person.lastName}`;
+  const fullName = [person.firstName, person.middleName, person.lastName].filter(Boolean).join(" ");
   const isDeceased = person.deathYear != null;
 
   return (
@@ -53,9 +55,9 @@ export default function PersonCard({ person, selected, compact, onClick }: Perso
           {person.isPrivate && <Lock className="w-3 h-3 text-[#718096] flex-shrink-0" />}
           {isDeceased && <Minus className="w-3 h-3 text-[#718096] flex-shrink-0" />}
         </div>
-        {(person.firstNameAr || person.lastNameAr) && (
+        {(person.firstNameAr || person.middleNameAr || person.lastNameAr) && (
           <p className="text-xs text-[#718096] truncate" dir="rtl">
-            {person.firstNameAr || ""} {person.lastNameAr || ""}
+            {[person.firstNameAr, person.middleNameAr, person.lastNameAr].filter(Boolean).join(" ")}
           </p>
         )}
         {!compact && (person.birthYear || person.nickname) && (
